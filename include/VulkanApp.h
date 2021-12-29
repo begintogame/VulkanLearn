@@ -2,10 +2,12 @@
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <glm/glm.hpp>
 #include <iostream>
 #include <optional>
 #include <set>
@@ -14,6 +16,8 @@
 
 #include <base_frag.h>
 #include <base_vert.h>
+#include <vertexbuffer_frag.h>
+#include <vertexbuffer_vert.h>
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
@@ -63,6 +67,40 @@ struct SwapChainSupportDetails {
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
 };
+
+struct Vertex {
+    glm::vec2 pos;
+    glm::vec3 color;
+
+    static VkVertexInputBindingDescription getBindingDescription() {
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(Vertex);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        return bindingDescription;
+    }
+
+    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+
+        attributeDescriptions[0].binding = 0;
+        attributeDescriptions[0].location = 0;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].offset = offsetof(Vertex, pos);
+
+        attributeDescriptions[1].binding = 0;
+        attributeDescriptions[1].location = 1;
+        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+        return attributeDescriptions;
+    }
+};
+
+const std::vector<Vertex> vertices = {{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                                      {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+                                      {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 
 class HelloTriangleApplication {
   public:
@@ -476,9 +514,9 @@ class HelloTriangleApplication {
         // auto vertShaderCode = readFile("shaders/vert.spv");
         // auto fragShaderCode = readFile("shaders/frag.spv");
 
-        VkShaderModule vertShaderModule = createShaderModule(BASE_VERT);
-        VkShaderModule fragShaderModule = createShaderModule(BASE_FRAG);
-        
+        VkShaderModule vertShaderModule = createShaderModule(VERTEXBUFFER_VERT);
+        VkShaderModule fragShaderModule = createShaderModule(VERTEXBUFFER_FRAG);
+
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -495,8 +533,15 @@ class HelloTriangleApplication {
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = 0;
-        vertexInputInfo.vertexAttributeDescriptionCount = 0;
+
+        auto bindingDescription = Vertex::getBindingDescription();
+        auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.vertexAttributeDescriptionCount
+            = static_cast<uint32_t>(attributeDescriptions.size());
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
