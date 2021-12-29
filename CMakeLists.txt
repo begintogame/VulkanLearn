@@ -74,6 +74,32 @@ if(GLM_ADDED)
   )
 endif()
 
+CPMAddPackage(
+  NAME stb
+  GIT_TAG af1a5bc
+  GITHUB_REPOSITORY nothings/stb
+  DOWNLOAD_ONLY True
+)
+
+if(stb_ADDED)
+  set(stb_SOURCE_DIR_ ${stb_SOURCE_DIR})
+  set(stb_BINARY_DIR_ ${stb_BINARY_DIR})
+  add_library(stb INTERFACE)
+  target_include_directories(stb INTERFACE $<BUILD_INTERFACE:${stb_SOURCE_DIR_}>
+                         $<INSTALL_INTERFACE:include/stb-af1a5bc>)
+  set_target_properties(stb PROPERTIES FOLDER "third_party" )
+
+  packageProject(
+    NAME stb
+    VERSION af1a5bc
+    NAMESPACE stb
+    BINARY_DIR ${stb_BINARY_DIR_}
+    INCLUDE_DIR ${stb_SOURCE_DIR_}
+    INCLUDE_DESTINATION include/stb-af1a5bc
+    VERSION_HEADER "${VERSION_HEADER_LOCATION}"
+    COMPATIBILITY SameMajorVersion
+  )
+endif()
 
 CPMAddPackage(
   NAME imgui
@@ -146,6 +172,7 @@ find_package(Vulkan REQUIRED COMPONENTS glslc FATAL_ERROR)
 target_link_libraries(${PROJECT_NAME} PRIVATE spdlog::spdlog)
 target_link_libraries(${PROJECT_NAME} PUBLIC GLM)
 target_link_libraries(${PROJECT_NAME} PUBLIC glfw)
+target_link_libraries(${PROJECT_NAME} PUBLIC stb)
 target_link_libraries(${PROJECT_NAME} PUBLIC imgui)
 target_link_libraries(${PROJECT_NAME} PUBLIC Vulkan::Vulkan)
 
