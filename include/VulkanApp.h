@@ -55,6 +55,7 @@ class HelloTriangleApplication {
     vk::Format swapChainImageFormat;
     vk::Extent2D swapChainExtent;
 
+    std::vector<vk::ImageView> swapChainImageViews;
 
     void initWindow() {
         glfwInit();
@@ -71,6 +72,7 @@ class HelloTriangleApplication {
         pickPhysicalDevice();
         createLogicalDevice();
         createSwapChain();
+        createImageViews();
     }
 
     void mainLoop() {
@@ -80,6 +82,10 @@ class HelloTriangleApplication {
     }
 
     void cleanup() {
+        for (auto imageView : swapChainImageViews) {
+            device.destroyImageView(imageView, nullptr);
+        }
+
         device.destroySwapchainKHR(swapChain);
         device.destroy();
         instance.destroySurfaceKHR(surface);
@@ -205,11 +211,8 @@ class HelloTriangleApplication {
         vk::PresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
         vk::Extent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
-        uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-        if (swapChainSupport.capabilities.maxImageCount > 0
-            && imageCount > swapChainSupport.capabilities.maxImageCount) {
-            imageCount = swapChainSupport.capabilities.maxImageCount;
-        }
+        uint32_t imageCount = std::clamp(swapChainSupport.capabilities.minImageCount + 1, swapChainSupport.capabilities.minImageCount,
+                                swapChainSupport.capabilities.maxImageCount);
 
         vk::SwapchainCreateInfoKHR createInfo{};
         createInfo.surface = surface;
@@ -248,6 +251,31 @@ class HelloTriangleApplication {
 
         swapChainImageFormat = surfaceFormat.format;
         swapChainExtent = extent;
+    }
+
+    void createImageViews() {
+        swapChainImageViews.resize(swapChainImages.size());
+
+        for (size_t i = 0; i < swapChainImages.size(); i++) {
+            vk::ImageViewCreateInfo createInfo{};
+            createInfo.image = swapChainImages[i];
+            createInfo.viewType = vk::ImageViewType::e2D;
+            createInfo.format = swapChainImageFormat;
+            createInfo.components.r = vk::ComponentSwizzle::eIdentity;
+            createInfo.components.g = vk::ComponentSwizzle::eIdentity;
+            createInfo.components.b = vk::ComponentSwizzle::eIdentity;
+            createInfo.components.a = vk::ComponentSwizzle::eIdentity;
+            createInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+            createInfo.subresourceRange.baseMipLevel = 0;
+            createInfo.subresourceRange.levelCount = 1;
+            createInfo.subresourceRange.baseArrayLayer = 0;
+            createInfo.subresourceRange.layerCount = 1;
+
+            if (device.createImageView(&createInfo, nullptr, &swapChainImageViews[i])
+                != vk::Result::eSuccess) {
+                throw std::runtime_error("failed to create image views!");
+            }
+        }
     }
 
     vk::SurfaceFormatKHR chooseSwapSurfaceFormat(
