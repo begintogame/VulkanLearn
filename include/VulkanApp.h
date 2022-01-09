@@ -6,11 +6,17 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <optional>
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
 const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+struct QueueFamilyIndices {
+    std::optional<uint32_t> graphicsFamily;
+
+    bool isComplete() { return graphicsFamily.has_value(); }
+};
 
 class HelloTriangleApplication {
   public:
@@ -25,6 +31,7 @@ class HelloTriangleApplication {
     GLFWwindow* window;
 
     vk::Instance instance;
+    vk::PhysicalDevice physicalDevice;
 
     void initWindow() {
         glfwInit();
@@ -35,7 +42,10 @@ class HelloTriangleApplication {
         window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
     }
 
-    void initVulkan() { createInstance(); }
+    void initVulkan() {
+        createInstance();
+        pickPhysicalDevice();
+    }
 
     void mainLoop() {
         while (!glfwWindowShouldClose(window)) {
@@ -100,6 +110,42 @@ class HelloTriangleApplication {
         createInfo.setPNext(pNext);
         // create an Instance
         instance = vk::createInstance(createInfo);
+    }
+    void pickPhysicalDevice() {
+        auto devices = instance.enumeratePhysicalDevices();
+
+        for (const auto& device : devices) {
+            if (isDeviceSuitable(device)) {
+                physicalDevice = device;
+                return;
+            }
+        }
+
+        throw std::runtime_error("failed to find a suitable GPU!");
+    }
+
+    bool isDeviceSuitable(VkPhysicalDevice device) {
+        QueueFamilyIndices indices = findQueueFamilies(device);
+
+        return indices.isComplete();
+    }
+
+    QueueFamilyIndices findQueueFamilies(vk::PhysicalDevice device) {
+        QueueFamilyIndices indices;
+
+        auto queueFamilies = device.getQueueFamilyProperties();
+
+        int i = 0;
+        for (const auto& queueFamily : queueFamilies) {
+            if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics) {
+                indices.graphicsFamily = i;
+            }
+            if (indices.isComplete()) {
+                break;
+            }
+            i++;
+        }
+        return indices;
     }
     std::vector<const char*> getRequiredExtensions() {
         uint32_t glfwExtensionCount = 0;
