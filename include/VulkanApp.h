@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 
 #include <iostream>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -14,8 +15,11 @@ const uint32_t HEIGHT = 600;
 const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
+    std::optional<uint32_t> presentFamily;
 
-    bool isComplete() { return graphicsFamily.has_value(); }
+    bool isComplete() {
+        return graphicsFamily.has_value() && presentFamily.has_value();
+    }
 };
 
 class HelloTriangleApplication {
@@ -36,6 +40,9 @@ class HelloTriangleApplication {
     vk::Device device;
     vk::Queue graphicsQueue;
 
+    vk::SurfaceKHR surface;
+    vk::Queue presentQueue;
+
     void initWindow() {
         glfwInit();
 
@@ -47,6 +54,7 @@ class HelloTriangleApplication {
 
     void initVulkan() {
         createInstance();
+        createSurface();
         pickPhysicalDevice();
         createLogicalDevice();
     }
@@ -59,6 +67,7 @@ class HelloTriangleApplication {
 
     void cleanup() {
         device.destroy();
+        instance.destroySurfaceKHR(surface);
         instance.destroy();
 
         glfwDestroyWindow(window);
@@ -116,6 +125,13 @@ class HelloTriangleApplication {
         // create an Instance
         instance = vk::createInstance(createInfo);
     }
+    void createSurface() {
+        VkSurfaceKHR _surface;
+        if (glfwCreateWindowSurface(instance, window, nullptr, &_surface) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create window surface!");
+        }
+        surface = _surface;
+    }
     void pickPhysicalDevice() {
         auto devices = instance.enumeratePhysicalDevices();
 
@@ -132,17 +148,24 @@ class HelloTriangleApplication {
     void createLogicalDevice() {
         QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
-        // create a Device
-        auto queueFamilyIndex = indices.graphicsFamily.value();
-        auto queueCount = 1;
-        float queuePriority = 1.0f;
+        std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+        std::set<uint32_t> uniqueQueueFamilies
+            = {indices.graphicsFamily.value(), indices.presentFamily.value()};
 
-        vk::DeviceQueueCreateInfo queueCreateInfo(vk::DeviceQueueCreateFlags(), queueFamilyIndex,
-                                                  queueCount, &queuePriority);
+        float queuePriority = 1.0f;
+        for (uint32_t queueFamily : uniqueQueueFamilies) {
+            // create a Device
+            auto queueFamilyIndex = indices.graphicsFamily.value();
+            auto queueCount = 1;
+
+            vk::DeviceQueueCreateInfo queueCreateInfo(vk::DeviceQueueCreateFlags(),
+                                                      queueFamilyIndex, queueCount, &queuePriority);
+            queueCreateInfos.push_back(queueCreateInfo);
+        }
 
         vk::PhysicalDeviceFeatures deviceFeatures{};
 
-        uint32_t queueCreateInfoCount = 1;
+        uint32_t queueCreateInfoCount = queueCreateInfos.size();
         auto pEnabledFeatures = &deviceFeatures;
         uint32_t enabledExtensionCount = 0;
         uint32_t enabledLayerCount = 0;
@@ -152,13 +175,14 @@ class HelloTriangleApplication {
         ppEnabledLayerNames = validationLayers.data();
 #endif
         vk::DeviceCreateInfo createInfo(vk::DeviceCreateFlags(), queueCreateInfoCount,
-                                        &queueCreateInfo, enabledLayerCount, ppEnabledLayerNames,
+                                        queueCreateInfos.data(), enabledLayerCount, ppEnabledLayerNames,
                                         enabledExtensionCount, nullptr, pEnabledFeatures);
         device = physicalDevice.createDevice(createInfo);
         graphicsQueue = device.getQueue(indices.graphicsFamily.value(), 0);
+        presentQueue = device.getQueue( indices.presentFamily.value(), 0);
     }
 
-    bool isDeviceSuitable(VkPhysicalDevice device) {
+    bool isDeviceSuitable(vk::PhysicalDevice device) {
         QueueFamilyIndices indices = findQueueFamilies(device);
 
         return indices.isComplete();
@@ -173,6 +197,12 @@ class HelloTriangleApplication {
         for (const auto& queueFamily : queueFamilies) {
             if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics) {
                 indices.graphicsFamily = i;
+            }
+            VkBool32 presentSupport = false;
+            device.getSurfaceSupportKHR(i, surface, &presentSupport);
+
+            if (presentSupport) {
+                indices.presentFamily = i;
             }
             if (indices.isComplete()) {
                 break;
