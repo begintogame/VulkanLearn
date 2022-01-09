@@ -33,6 +33,9 @@ class HelloTriangleApplication {
     vk::Instance instance;
     vk::PhysicalDevice physicalDevice;
 
+    vk::Device device;
+    vk::Queue graphicsQueue;
+
     void initWindow() {
         glfwInit();
 
@@ -45,6 +48,7 @@ class HelloTriangleApplication {
     void initVulkan() {
         createInstance();
         pickPhysicalDevice();
+        createLogicalDevice();
     }
 
     void mainLoop() {
@@ -54,6 +58,7 @@ class HelloTriangleApplication {
     }
 
     void cleanup() {
+        device.destroy();
         instance.destroy();
 
         glfwDestroyWindow(window);
@@ -122,6 +127,35 @@ class HelloTriangleApplication {
         }
 
         throw std::runtime_error("failed to find a suitable GPU!");
+    }
+
+    void createLogicalDevice() {
+        QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+
+        // create a Device
+        auto queueFamilyIndex = indices.graphicsFamily.value();
+        auto queueCount = 1;
+        float queuePriority = 1.0f;
+
+        vk::DeviceQueueCreateInfo queueCreateInfo(vk::DeviceQueueCreateFlags(), queueFamilyIndex,
+                                                  queueCount, &queuePriority);
+
+        vk::PhysicalDeviceFeatures deviceFeatures{};
+
+        uint32_t queueCreateInfoCount = 1;
+        auto pEnabledFeatures = &deviceFeatures;
+        uint32_t enabledExtensionCount = 0;
+        uint32_t enabledLayerCount = 0;
+        const char*const* ppEnabledLayerNames = nullptr;
+#if !defined(NDEBUG) 
+        enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        ppEnabledLayerNames = validationLayers.data();
+#endif
+        vk::DeviceCreateInfo createInfo(vk::DeviceCreateFlags(), queueCreateInfoCount,
+                                        &queueCreateInfo, enabledLayerCount, ppEnabledLayerNames,
+                                        enabledExtensionCount, nullptr, pEnabledFeatures);
+        device = physicalDevice.createDevice(createInfo);
+        graphicsQueue = device.getQueue(indices.graphicsFamily.value(), 0);
     }
 
     bool isDeviceSuitable(VkPhysicalDevice device) {
