@@ -62,6 +62,8 @@ class HelloTriangleApplication {
 
     vk::PipelineLayout pipelineLayout;
 
+    vk::RenderPass renderPass;
+
     void initWindow() {
         glfwInit();
 
@@ -78,6 +80,7 @@ class HelloTriangleApplication {
         createLogicalDevice();
         createSwapChain();
         createImageViews();
+        createRenderPass();
         createGraphicsPipeline();
     }
 
@@ -89,6 +92,7 @@ class HelloTriangleApplication {
 
     void cleanup() {
         device.destroyPipelineLayout(pipelineLayout, nullptr);
+        device.destroyRenderPass(renderPass, nullptr);
 
         for (auto imageView : swapChainImageViews) {
             device.destroyImageView(imageView, nullptr);
@@ -283,6 +287,37 @@ class HelloTriangleApplication {
                 != vk::Result::eSuccess) {
                 throw std::runtime_error("failed to create image views!");
             }
+        }
+    }
+
+    void createRenderPass() {
+        vk::AttachmentDescription colorAttachment{};
+        colorAttachment.format = swapChainImageFormat;
+        colorAttachment.samples = vk::SampleCountFlagBits::e1;
+        colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+        colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+        colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+        colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+
+        vk::AttachmentReference colorAttachmentRef{};
+        colorAttachmentRef.attachment = 0;
+        colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        
+        vk::SubpassDescription subpass{};
+        subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentRef;
+
+        vk::RenderPassCreateInfo renderPassInfo{};
+        renderPassInfo.attachmentCount = 1;
+        renderPassInfo.pAttachments = &colorAttachment;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+
+        if (device.createRenderPass(&renderPassInfo, nullptr, &renderPass) != vk::Result::eSuccess) {
+            throw std::runtime_error("failed to create render pass!");
         }
     }
 
