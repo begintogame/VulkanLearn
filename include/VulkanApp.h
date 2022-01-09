@@ -1,3 +1,6 @@
+#include <base_frag.h>
+#include <base_vert.h>
+
 #include "vulkan/vulkan.hpp"
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -279,7 +282,40 @@ class HelloTriangleApplication {
         }
     }
 
-    void createGraphicsPipeline() {}
+    void createGraphicsPipeline() {
+
+        vk::ShaderModule vertShaderModule = createShaderModule(BASE_VERT);
+        vk::ShaderModule fragShaderModule = createShaderModule(BASE_FRAG);
+
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo{};
+        vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main";
+        // fragShaderStageInfo.pSpecializationInfo={};
+
+        vk::PipelineShaderStageCreateInfo fragShaderStageInfo{};
+        fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+
+        vk::PipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+
+        device.destroyShaderModule(fragShaderModule, nullptr);
+        device.destroyShaderModule(vertShaderModule, nullptr);
+    }
+
+    vk::ShaderModule createShaderModule(const std::vector<unsigned char>& code) {
+        vk::ShaderModuleCreateInfo createInfo{};
+        createInfo.codeSize = code.size();
+        createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+        vk::ShaderModule shaderModule;
+        if (device.createShaderModule(&createInfo, nullptr, &shaderModule) != vk::Result::eSuccess) {
+            throw std::runtime_error("failed to create shader module!");
+        }
+
+        return shaderModule;
+    }
 
     vk::SurfaceFormatKHR chooseSwapSurfaceFormat(
         const std::vector<vk::SurfaceFormatKHR>& availableFormats) {
