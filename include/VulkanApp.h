@@ -73,6 +73,7 @@ class HelloTriangleApplication {
         createLogicalDevice();
         createSwapChain();
         createImageViews();
+        createGraphicsPipeline();
     }
 
     void mainLoop() {
@@ -277,6 +278,8 @@ class HelloTriangleApplication {
             }
         }
     }
+
+    void createGraphicsPipeline() {}
 
     vk::SurfaceFormatKHR chooseSwapSurfaceFormat(
         const std::vector<vk::SurfaceFormatKHR>& availableFormats) {
