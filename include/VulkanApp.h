@@ -60,6 +60,8 @@ class HelloTriangleApplication {
 
     std::vector<vk::ImageView> swapChainImageViews;
 
+    vk::PipelineLayout pipelineLayout;
+
     void initWindow() {
         glfwInit();
 
@@ -86,6 +88,8 @@ class HelloTriangleApplication {
     }
 
     void cleanup() {
+        device.destroyPipelineLayout(pipelineLayout, nullptr);
+
         for (auto imageView : swapChainImageViews) {
             device.destroyImageView(imageView, nullptr);
         }
@@ -299,6 +303,83 @@ class HelloTriangleApplication {
         fragShaderStageInfo.pName = "main";
 
         vk::PipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+
+        vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
+        vertexInputInfo.vertexBindingDescriptionCount = 0;
+        vertexInputInfo.vertexAttributeDescriptionCount = 0;
+
+        vk::PipelineInputAssemblyStateCreateInfo inputAssembly{};
+        inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
+        inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+        vk::Viewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = (float)swapChainExtent.width;
+        viewport.height = (float)swapChainExtent.height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        vk::Rect2D scissor{};
+        scissor.offset = vk::Offset2D{0, 0};
+        scissor.extent = swapChainExtent;
+
+        vk::PipelineViewportStateCreateInfo viewportState{};
+        viewportState.viewportCount = 1;
+        viewportState.pViewports = &viewport;
+        viewportState.scissorCount = 1;
+        viewportState.pScissors = &scissor;
+
+        vk::PipelineRasterizationStateCreateInfo rasterizer{};
+        rasterizer.depthClampEnable = VK_FALSE;
+        rasterizer.rasterizerDiscardEnable = VK_FALSE;
+        rasterizer.polygonMode = vk::PolygonMode::eFill;
+        rasterizer.lineWidth = 1.0f;
+        rasterizer.cullMode = vk::CullModeFlagBits::eBack;
+        rasterizer.frontFace = vk::FrontFace::eClockwise;
+        rasterizer.depthBiasEnable = VK_FALSE;
+
+        vk::PipelineMultisampleStateCreateInfo multisampling{};
+        multisampling.sampleShadingEnable = VK_FALSE;
+        multisampling.rasterizationSamples = vk::SampleCountFlagBits::e1;
+
+        vk::PipelineColorBlendAttachmentState colorBlendAttachment{};
+        colorBlendAttachment.colorWriteMask
+            = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG
+              | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+        colorBlendAttachment.blendEnable = VK_FALSE;
+        //colorBlendAttachment.blendEnable = VK_TRUE;
+        //colorBlendAttachment.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha;
+        //colorBlendAttachment.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
+        //colorBlendAttachment.colorBlendOp = vk::BlendOp::eAdd;
+        //colorBlendAttachment.srcAlphaBlendFactor = vk::BlendFactor::eOne;
+        //colorBlendAttachment.dstAlphaBlendFactor = vk::BlendFactor::eZero;
+        //colorBlendAttachment.alphaBlendOp = vk::BlendOp::eAdd;
+
+        vk::PipelineColorBlendStateCreateInfo colorBlending{};
+        colorBlending.logicOpEnable = VK_FALSE;
+        colorBlending.logicOp = vk::LogicOp::eCopy;
+        colorBlending.attachmentCount = 1;
+        colorBlending.pAttachments = &colorBlendAttachment;
+        colorBlending.blendConstants[0] = 0.0f;
+        colorBlending.blendConstants[1] = 0.0f;
+        colorBlending.blendConstants[2] = 0.0f;
+        colorBlending.blendConstants[3] = 0.0f;
+
+        //vk::DynamicState dynamicStates[] = {vk::DynamicState::eViewport,vk::DynamicState::eLineWidth};
+
+        //vk::PipelineDynamicStateCreateInfo dynamicState{};
+        //dynamicState.dynamicStateCount = 2;
+        //dynamicState.pDynamicStates = dynamicStates;
+
+        vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
+        pipelineLayoutInfo.setLayoutCount = 0;
+        pipelineLayoutInfo.pushConstantRangeCount = 0;
+
+        if (device.createPipelineLayout(&pipelineLayoutInfo, nullptr, &pipelineLayout)
+            != vk::Result::eSuccess) {
+            throw std::runtime_error("failed to create pipeline layout!");
+        }
 
         device.destroyShaderModule(fragShaderModule, nullptr);
         device.destroyShaderModule(vertShaderModule, nullptr);
