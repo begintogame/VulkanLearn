@@ -4,9 +4,13 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
+
+const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 
 class HelloTriangleApplication {
   public:
@@ -56,25 +60,63 @@ class HelloTriangleApplication {
         auto engineVersion = VK_MAKE_VERSION(1, 0, 0);
         auto apiVersion = VK_API_VERSION_1_1;
 
-        vk::ApplicationInfo appInfo(pApplicationName, 
-                                    applicationVersion, 
+        vk::ApplicationInfo appInfo(pApplicationName,
+                                    applicationVersion,
                                     pEngineName,
-                                    engineVersion, 
+                                    engineVersion,
                                     apiVersion);
 
         // initialize the vk::InstanceCreateInfo
         auto enabledLayerCount = 0;
 
+        const char* const* ppEnabledLayerNames = nullptr;
+
+        auto extensions = getRequiredExtensions();
+
+        void* pNext = nullptr;
+
+#if !defined(NDEBUG)
+        vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+        debugCreateInfo.messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose
+                                          | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning
+                                          | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
+        debugCreateInfo.messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral
+                                      | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation
+                                      | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
+        debugCreateInfo.pfnUserCallback = debugCallback;
+        pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        enabledLayerCount = validationLayers.size();
+        ppEnabledLayerNames = validationLayers.data();
+
+#endif
+
+        auto enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+        auto ppEnabledExtensionNames = extensions.data();
+
+        vk::InstanceCreateInfo createInfo({}, &appInfo, enabledLayerCount, ppEnabledLayerNames,
+                                          enabledExtensionCount, ppEnabledExtensionNames);
+        createInfo.setPNext(pNext);
+        // create an Instance
+        instance = vk::createInstance(createInfo);
+    }
+    std::vector<const char*> getRequiredExtensions() {
         uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions;
         glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-        auto enabledExtensionCount = glfwExtensionCount;
-        auto ppEnabledExtensionNames = glfwExtensions;
-
-        vk::InstanceCreateInfo createInfo({}, &appInfo, enabledLayerCount, nullptr,
-                                          enabledExtensionCount, ppEnabledExtensionNames);
-        // create an Instance
-        instance = vk::createInstance(createInfo);
+        std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+        return extensions;
     }
+#if !defined(NDEBUG)
+    static VKAPI_ATTR VkBool32 VKAPI_CALL
+    debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                  VkDebugUtilsMessageTypeFlagsEXT messageType,
+                  const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
+        std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+
+        return VK_FALSE;
+    }
+#endif
 };
